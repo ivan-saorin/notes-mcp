@@ -36,7 +36,7 @@ WORKDIR /app
 
 # Copy application code (paths relative to repo root)
 COPY src/ ./src/
-COPY run_server.py ./
+COPY run_unified_server.py ./
 
 # Health check for CapRover
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
