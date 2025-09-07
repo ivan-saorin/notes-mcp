@@ -3,13 +3,13 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "remote-mcp-server-with-app"
+name = "notes-mcp"
 version = "1.0.0"
-description = "A production-ready Model Context Protocol (MCP) server template for remote deployment"
+description = "A remote MCP note taking app"
 readme = "README.md"
 license = {text = "MIT"}
 authors = [
-    {name = "Your Name", email = "your.email@example.com"},
+    {name = "Your Name", email = "ivan.saorin@gmail.com"},
 ]
 requires-python = ">=3.10"
 dependencies = [
@@ -45,10 +45,10 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/ivan-saorin/python-remote-mcp-with-app-template"
-Documentation = "https://github.com/ivan-saorin/python-remote-mcp-with-app-template/wiki"
-Repository = "https://github.com/ivan-saorin/python-remote-mcp-with-app-template.git"
-"Bug Tracker" = "https://github.com/ivan-saorin/python-remote-mcp-with-app-template/issues"
+Homepage = "https://github.com/ivan-saorin/notes-mcp"
+Documentation = "https://github.com/ivan-saorin/notes-mcp/wiki"
+Repository = "https://github.com/ivan-saorin/notes-mcp.git"
+"Bug Tracker" = "https://github.com/ivan-saorin/notes-mcp/issues"
 
 [project.scripts]
 remote-mcp = "remote_mcp.server:main"

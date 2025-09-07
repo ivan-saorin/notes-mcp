@@ -24,8 +24,8 @@ logging.basicConfig(
 logger = logging.getLogger("remote-mcp")
 
 # Initialize MCP server
-mcp = FastMCP("Atlas Remote MCP")
-mcp.description = "Remote MCP server with calculator, text processing, task management, and notes management"
+mcp = FastMCP("Notes MCP")
+mcp.description = "A Remote MCP note taking app"
 
 # Simple task database
 tasks_db = {}
