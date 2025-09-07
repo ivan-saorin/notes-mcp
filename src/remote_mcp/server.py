@@ -353,15 +353,14 @@ async def health_check(request):
         status_code=200
     )
 
-# Create MCP app with path="/mcp" - this tells FastMCP where to expect requests
+# Create MCP app
 try:
     if hasattr(mcp, 'http_app'):
-        # THIS IS THE KEY: Tell FastMCP to expect requests at /mcp
         mcp_app = mcp.http_app()
-        logger.info("Created MCP app with /mcp path")
+        logger.info("Created MCP app")
     elif hasattr(mcp, 'streamable_http_app'):
         mcp_app = mcp.streamable_http_app()
-        logger.warning("Using older streamable_http_app() - path parameter may not be supported")
+        logger.warning("Using older streamable_http_app()")
     else:
         raise AttributeError("No HTTP app method found in FastMCP")
     
@@ -369,16 +368,21 @@ except Exception as e:
     logger.error(f"Failed to create MCP HTTP app: {e}")
     raise
 
-# Create main Starlette app with health check
-app = Starlette(
-    lifespan=mcp_app.lifespan,
-    routes=[
-        Route("/health", health_check, methods=["GET"]),
-        Route("/", health_check, methods=["GET"]),  # Root health check
-        Route("/mcp", mcp_app, methods=["POST", "GET"]),  # MCP endpoint
-        Route("/mcp/", mcp_app, methods=["POST", "GET"]),  # MCP endpoint
-    ]
-)
+# When running as standalone server, create wrapper with health check
+if __name__ == "__main__":
+    # Create main Starlette app with health check for standalone mode
+    app = Starlette(
+        lifespan=mcp_app.lifespan,
+        routes=[
+            Route("/health", health_check, methods=["GET"]),
+            Route("/", health_check, methods=["GET"]),  # Root health check
+            Route("/mcp", mcp_app, methods=["POST", "GET"]),  # MCP endpoint
+            Route("/mcp/", mcp_app, methods=["POST", "GET"]),  # MCP endpoint
+        ]
+    )
+else:
+    # When imported, export just the MCP app for mounting
+    app = mcp_app
 
 # ============================================================================
 # SERVER STARTUP
