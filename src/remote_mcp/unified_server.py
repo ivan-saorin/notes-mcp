@@ -77,8 +77,8 @@ middleware = [
 # Create the unified app
 app = Starlette(
     routes=routes,
-    middleware=middleware
-    # MCP app handles its own lifespan internally when mounted
+    middleware=middleware,
+    lifespan=mcp_app.lifespan
 )
 
 # ============================================================================
