@@ -46,4 +46,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 EXPOSE 80
 
 # Run the server
-CMD ["python", "run_server.py"]
+CMD ["python", "run_unified_server.py"]
