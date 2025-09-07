@@ -62,6 +62,7 @@ routes = [
     
     # MCP routes - mount the MCP app under /mcp
     Mount("/mcp", mcp_app),
+    Mount("/mcp/", mcp_app),
 ]
 
 # ============================================================================
