@@ -368,10 +368,13 @@ except Exception as e:
     logger.error(f"Failed to create MCP HTTP app: {e}")
     raise
 
+# Export the raw MCP app for unified server to access lifespan
+app = mcp_app
+
 # When running as standalone server, create wrapper with health check
 if __name__ == "__main__":
     # Create main Starlette app with health check for standalone mode
-    app = Starlette(
+    standalone_app = Starlette(
         lifespan=mcp_app.lifespan,
         routes=[
             Route("/health", health_check, methods=["GET"]),
@@ -380,9 +383,6 @@ if __name__ == "__main__":
             Route("/mcp/", mcp_app, methods=["POST", "GET"]),  # MCP endpoint
         ]
     )
-else:
-    # When imported, export just the MCP app for mounting
-    app = mcp_app
 
 # ============================================================================
 # SERVER STARTUP
@@ -407,8 +407,8 @@ if __name__ == "__main__":
     # Make sure to use run().
 
     try:
-        # Run the HTTP server directly with the MCP app
-        uvicorn.run(app, host=host, port=port)
+        # Run the HTTP server directly with the standalone app
+        uvicorn.run(standalone_app, host=host, port=port)
     except KeyboardInterrupt:
         logger.info("Server stopped by user")
         sys.exit(0)
