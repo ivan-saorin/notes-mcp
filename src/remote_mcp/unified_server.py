@@ -61,8 +61,8 @@ routes = [
     Route("/notes/{id}", delete_note_handler, methods=["DELETE"]),
     
     # MCP routes - mount the MCP app under /mcp
-    Mount("/mcp", mcp_app),
-    Mount("/mcp/", mcp_app),
+    Route("/mcp", mcp_app, methods=["POST", "GET"]),  # MCP endpoint
+    Route("/mcp/", mcp_app, methods=["POST", "GET"]),  # MCP endpoint
 ]
 
 # ============================================================================
@@ -78,7 +78,7 @@ middleware = [
 app = Starlette(
     routes=routes,
     middleware=middleware,
-    lifespan=mcp_app.lifespan
+    lifespan=mcp_app.lifespan  # CRITICAL: FastMCP needs this to initialize properly
 )
 
 # ============================================================================
