@@ -1,0 +1,16 @@
+# Atlas Remote MCP Prototype v2 - Python Dependencies
+
+# Core MCP implementation
+fastmcp  # Latest version
+
+# Web framework and server
+starlette
+uvicorn[standard]
+
+# Utilities
+python-dotenv
+pyyaml
+aiofiles
+
+# HTTP client (if needed for external calls)
+httpx
