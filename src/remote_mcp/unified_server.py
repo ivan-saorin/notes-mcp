@@ -29,31 +29,13 @@ logging.basicConfig(
 logger = logging.getLogger("unified-server")
 
 # ============================================================================
-# Lifespan Manager
+# MCP Handler - Direct routing to avoid 307 redirects
 # ============================================================================
 
-@asynccontextmanager
-async def unified_lifespan(app):
-    """Manage lifecycle of all components"""
-    logger.info("Starting Unified Server v2...")
-    
-    # Start event manager
-    await event_manager.start()
-    logger.info("Event Manager started")
-    
-    # Start MCP lifespan if it exists
-    if hasattr(mcp_app, 'lifespan'):
-        async with mcp_app.lifespan(app):
-            logger.info("MCP Server started")
-            yield
-    else:
-        logger.info("MCP Server started (no lifespan)")
-        yield
-    
-    # Cleanup
-    logger.info("Shutting down Unified Server...")
-    await event_manager.stop()
-    logger.info("Event Manager stopped")
+async def mcp_handler(request):
+    """Direct handler for MCP requests to avoid 307 redirects"""
+    # Pass the request directly to the MCP app
+    return await mcp_app(request.scope, request.receive, request._send)
 
 # ============================================================================
 # Health Check
@@ -91,7 +73,32 @@ async def health_check(request):
 
 async def root_redirect(request):
     """Redirect root to web UI"""
-    return RedirectResponse(url="/app", status_code=302)
+    return RedirectResponse(url="/app/", status_code=302)
+
+# ============================================================================
+# Combined Lifespan
+# ============================================================================
+
+@asynccontextmanager
+async def combined_lifespan(app):
+    """Combined lifespan that manages both MCP and event manager"""
+    # Start event manager first
+    await event_manager.start()
+    logger.info("Event Manager started")
+    
+    # Then start MCP lifespan if it exists
+    if hasattr(mcp_app, 'lifespan'):
+        async with mcp_app.lifespan(app):
+            logger.info("MCP Server started with lifespan")
+            yield
+            logger.info("MCP Server stopping")
+    else:
+        logger.info("MCP Server started (no lifespan)")
+        yield
+    
+    # Cleanup event manager
+    await event_manager.stop()
+    logger.info("Event Manager stopped")
 
 # ============================================================================
 # Combined Routes
@@ -102,10 +109,11 @@ routes = [
     Route("/health", health_check, methods=["GET"]),
     Route("/", root_redirect, methods=["GET"]),
     
-    # MCP endpoint - Mount the MCP app
-    Mount("/mcp", app=mcp_app, name="mcp"),
+    # MCP endpoint - Direct routing to avoid 307
+    Route("/mcp", mcp_handler, methods=["POST", "GET", "OPTIONS"]),
+    Route("/mcp/", mcp_handler, methods=["POST", "GET", "OPTIONS"]),
     
-    # Web interface - Mount the web app
+    # Web interface - Mount the web app (this one is OK with redirects)
     Mount("/app", app=web_app, name="web"),
     
     # SSE events endpoint (shared)
@@ -131,10 +139,11 @@ middleware = [
 # Create Unified Application
 # ============================================================================
 
+# Create the unified app with the MCP app's lifespan
 unified_app = Starlette(
     routes=routes,
     middleware=middleware,
-    lifespan=mcp_app.lifespan if hasattr(mcp_app, 'lifespan') else unified_lifespan,
+    lifespan=combined_lifespan,  # Use combined lifespan
     debug=os.environ.get("DEBUG", "").lower() == "true"
 )
 
@@ -184,4 +193,3 @@ if __name__ == "__main__":
     except Exception as e:
         logger.error(f"Server error: {e}")
         raise
-
