@@ -155,8 +155,8 @@ async def ai_summarize(
 async def custom_api_request(
     endpoint: str,
     method: str = "GET",
-    data: Optional[Dict[str, Any]] = None,
-    headers: Optional[Dict[str, str]] = None
+    data: Dict[str, Any] = None,
+    headers: Dict[str, str] = None
 ) -> Dict[str, Any]:
     """
     Make a request to a custom API

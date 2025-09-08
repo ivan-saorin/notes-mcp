@@ -134,9 +134,9 @@ async def text_analyze(text: str) -> Dict[str, Any]:
 
 @mcp.tool()
 async def wait_for_updates(
-    targets: Optional[List[str]] = None,
+    targets: List[str] = None,
     timeout: int = 30,
-    since: Optional[str] = None,
+    since: str = None,
     priority_min: str = "normal"
 ) -> Dict[str, Any]:
     """
@@ -201,7 +201,7 @@ async def wait_for_updates(
 
 @mcp.tool()
 async def sync_changes(
-    last_sync_id: Optional[str] = None,
+    last_sync_id: str = None,
     include_full_state: bool = False
 ) -> Dict[str, Any]:
     """
@@ -280,7 +280,7 @@ async def task_create(
 
 @mcp.tool()
 async def task_list(
-    status: Optional[str] = None
+    status: str = None
 ) -> List[Dict[str, Any]]:
     """
     List all tasks
@@ -296,10 +296,10 @@ async def task_list(
 @mcp.tool()
 async def task_update(
     task_id: str,
-    status: Optional[str] = None,
-    title: Optional[str] = None,
-    description: Optional[str] = None,
-    priority: Optional[str] = None
+    status: str = None,
+    title: str = None,
+    description: str = None,
+    priority: str = None
 ) -> Dict[str, Any]:
     """
     Update a task
@@ -351,7 +351,7 @@ async def task_delete(task_id: str) -> Dict[str, Any]:
 
 @mcp.tool()
 @emit_event(EventType.LIST if EventType else None, target="note")
-async def list_notes(tags: Optional[List[str]] = None) -> Dict[str, Any]:
+async def list_notes(tags: List[str] = None) -> Dict[str, Any]:
     """
     Lists all notes, or search notes with tags
     
@@ -396,8 +396,8 @@ async def write_note(
     title: str,
     content: str,
     summary: str,
-    tags: Optional[List[str]] = None,
-    note_id: Optional[str] = None
+    tags: List[str] = None,
+    note_id: str = None
 ) -> Dict[str, Any]:
     """
     Creates or updates a note

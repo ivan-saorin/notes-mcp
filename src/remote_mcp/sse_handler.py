@@ -32,9 +32,9 @@ class SSEMessage:
     
     @staticmethod
     def format(data: Any, 
-               event: Optional[str] = None,
-               id: Optional[str] = None,
-               retry: Optional[int] = None) -> str:
+               event: str = None,
+               id: str = None,
+               retry: int = None) -> str:
         """
         Format a message for SSE
         
@@ -73,7 +73,7 @@ class SSEMessage:
         )
     
     @staticmethod
-    def error(message: str, code: Optional[str] = None) -> str:
+    def error(message: str, code: str = None) -> str:
         """Create an error message"""
         return SSEMessage.format(
             data={"type": "error", "message": message, "code": code},
@@ -85,8 +85,8 @@ class SSEMessage:
 # ============================================================================
 
 async def create_sse_stream(request: Request,
-                           connection_id: Optional[str] = None,
-                           channels: Optional[list] = None,
+                           connection_id: str = None,
+                           channels: list = None,
                            heartbeat_interval: int = 30) -> AsyncGenerator[str, None]:
     """
     Create an SSE stream for a client

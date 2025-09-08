@@ -96,9 +96,9 @@ class Event:
     metadata: Dict[str, Any] = field(default_factory=dict)
     timestamp: str = field(default_factory=lambda: datetime.now().isoformat())
     priority: EventPriority = EventPriority.NORMAL
-    ttl: Optional[int] = None  # Time to live in seconds
+    ttl: int = None  # Time to live in seconds
     retry_count: int = 0
-    correlation_id: Optional[str] = None  # For tracking related events
+    correlation_id: str = None  # For tracking related events
     
     def __post_init__(self):
         """Validate event data"""
@@ -143,13 +143,13 @@ class Event:
 @dataclass
 class EventFilter:
     """Filter criteria for events"""
-    types: Optional[List[EventType]] = None
-    sources: Optional[List[str]] = None
-    targets: Optional[List[str]] = None
+    types: List[EventType] = None
+    sources: List[str] = None
+    targets: List[str] = None
     priority_min: EventPriority = EventPriority.LOW
     exclude_expired: bool = True
-    since: Optional[str] = None  # ISO timestamp or event ID
-    correlation_id: Optional[str] = None
+    since: str = None  # ISO timestamp or event ID
+    correlation_id: str = None
     
     def matches(self, event: Event) -> bool:
         """Check if event matches filter criteria"""
@@ -185,7 +185,7 @@ class Connection:
     created_at: datetime
     last_activity: datetime
     subscriptions: Set[str] = field(default_factory=set)
-    queue: Optional[asyncio.Queue] = None
+    queue: asyncio.Queue = None
     metadata: Dict[str, Any] = field(default_factory=dict)
     event_count: int = 0
     rate_limit_window_start: float = field(default_factory=time.time)
@@ -210,11 +210,11 @@ class ConnectionPool:
     def __init__(self):
         self.connections: Dict[str, Connection] = {}
         self._lock = asyncio.Lock()
-        self._cleanup_task: Optional[asyncio.Task] = None
+        self._cleanup_task: asyncio.Task = None
     
     async def create_connection(self, 
-                              connection_id: Optional[str] = None,
-                              metadata: Optional[Dict[str, Any]] = None) -> Connection:
+                              connection_id: str = None,
+                              metadata: Dict[str, Any] = None) -> Connection:
         """Create a new connection"""
         async with self._lock:
             if len(self.connections) >= EventConfig.MAX_CONNECTIONS:
@@ -235,7 +235,7 @@ class ConnectionPool:
             logger.info(f"Connection created: {conn_id}")
             return conn
     
-    async def get_connection(self, connection_id: str) -> Optional[Connection]:
+    async def get_connection(self, connection_id: str) -> Connection:
         """Get a connection by ID"""
         async with self._lock:
             conn = self.connections.get(connection_id)
@@ -344,9 +344,9 @@ class EventManager:
                    target: str,
                    action: str,
                    data: Dict[str, Any],
-                   metadata: Optional[Dict[str, Any]] = None,
+                   metadata: Dict[str, Any] = None,
                    priority: EventPriority = EventPriority.NORMAL,
-                   correlation_id: Optional[str] = None) -> Event:
+                   correlation_id: str = None) -> Event:
         """
         Emit an event to all subscribers with retry logic
         """
@@ -437,10 +437,10 @@ class EventManager:
     
     async def wait_for_updates(self,
                               connection_id: str,
-                              targets: Optional[List[str]] = None,
+                              targets: List[str] = None,
                               timeout: int = EventConfig.DEFAULT_TIMEOUT,
-                              filters: Optional[EventFilter] = None,
-                              since: Optional[str] = None) -> Dict[str, Any]:
+                              filters: EventFilter = None,
+                              since: str = None) -> Dict[str, Any]:
         """
         Long-polling wait for updates (used by Claude)
         
@@ -555,7 +555,7 @@ class EventManager:
     
     async def sync_changes(self,
                           connection_id: str,
-                          last_sync_id: Optional[str] = None,
+                          last_sync_id: str = None,
                           include_full_state: bool = False) -> Dict[str, Any]:
         """Get all changes since last sync point"""
         events = []
@@ -679,9 +679,9 @@ class EventMetrics:
 # ============================================================================
 
 def emit_event(event_type: EventType = EventType.CUSTOM,
-               target: Optional[str] = None,
-               extract_id: Optional[Callable] = None,
-               ui_hint: Optional[str] = None,
+               target: str = None,
+               extract_id: Callable = None,
+               ui_hint: str = None,
                priority: EventPriority = EventPriority.NORMAL):
     """
     Decorator to automatically emit events from MCP methods
@@ -769,8 +769,8 @@ def emit_event(event_type: EventType = EventType.CUSTOM,
 # ============================================================================
 
 @asynccontextmanager
-async def event_session(connection_id: Optional[str] = None,
-                        metadata: Optional[Dict[str, Any]] = None):
+async def event_session(connection_id: str = None,
+                        metadata: Dict[str, Any] = None):
     """
     Context manager for event sessions
     

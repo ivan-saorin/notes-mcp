@@ -58,8 +58,8 @@ Standard response structure for all tool methods:
 class ToolResponse:
     success: bool
     data: Dict[str, Any] = None
-    error: Optional[str] = None
-    metadata: Optional[Dict[str, Any]] = None
+    error: str = None
+    metadata: Dict[str, Any] = None
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization"""

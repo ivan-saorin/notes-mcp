@@ -45,7 +45,7 @@ def generate_token(user_id: str, permissions: List[str] = None) -> str:
     return jwt.encode(payload, SECRET_KEY, algorithm="HS256")
 
 # Example: JWT token validation
-def validate_token(token: str) -> Optional[Dict[str, Any]]:
+def validate_token(token: str) -> Dict[str, Any]:
     """Validate a JWT token"""
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
@@ -120,7 +120,7 @@ def require_permission(permission: str):
 # @mcp.tool()
 async def auth_login(
     api_key: str,
-    user_id: Optional[str] = None
+    user_id: str = None
 ) -> Dict[str, Any]:
     """
     Authenticate with API key and get JWT token
@@ -171,8 +171,8 @@ async def auth_validate(
 @rate_limit(max_requests=10, window_seconds=60)
 async def admin_tool(
     action: str,
-    _auth_token: Optional[str] = None,
-    _user_id: Optional[str] = None
+    _auth_token: str = None,
+    _user_id: str = None
 ) -> Dict[str, Any]:
     """
     Admin-only tool (requires authentication)

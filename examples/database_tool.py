@@ -34,8 +34,8 @@ async def init_database():
 # @mcp.tool()
 async def db_item_create(
     name: str,
-    description: Optional[str] = None,
-    category: Optional[str] = None
+    description: str = None,
+    category: str = None
 ) -> Dict[str, Any]:
     """
     Create a new item in the database
@@ -65,8 +65,8 @@ async def db_item_create(
 
 # @mcp.tool()
 async def db_item_search(
-    query: Optional[str] = None,
-    category: Optional[str] = None,
+    query: str = None,
+    category: str = None,
     limit: int = 10
 ) -> List[Dict[str, Any]]:
     """
@@ -102,9 +102,9 @@ async def db_item_search(
 # @mcp.tool()
 async def db_item_update(
     item_id: int,
-    name: Optional[str] = None,
-    description: Optional[str] = None,
-    category: Optional[str] = None
+    name: str = None,
+    description: str = None,
+    category: str = None
 ) -> Dict[str, Any]:
     """
     Update an existing item
