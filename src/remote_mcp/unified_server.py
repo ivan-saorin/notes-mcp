@@ -100,10 +100,23 @@ async def root_redirect(request):
 def get_app_components():
     """Import app components after event manager is initialized"""
     from .server import app as mcp_app
-    from .web_app import routes as web_routes, middleware as web_middleware
+    from .web_app import routes as web_routes, render_home_page, create_or_update_note_handler, delete_note_handler, get_notes_api, get_note_api
     from .sse_handler import sse_endpoint
     
-    return mcp_app, web_routes, web_middleware, sse_endpoint
+    return mcp_app, web_routes, sse_endpoint, render_home_page, create_or_update_note_handler, delete_note_handler, get_notes_api, get_note_api
+
+async def handle_mcp_endpoint(request):
+    """Handle MCP endpoint requests"""
+    from .server import app as mcp_app
+    
+    # Forward the request to the MCP app
+    if hasattr(mcp_app, '__call__'):
+        # The MCP app should handle the request
+        return await mcp_app(request.scope, request.receive, request._send)
+    else:
+        # If not callable, return error
+        from starlette.responses import JSONResponse
+        return JSONResponse({"error": "MCP endpoint not available"}, status_code=503)
 
 # ============================================================================
 # Create Unified Application
@@ -113,7 +126,7 @@ def create_unified_app():
     """Create the unified application with all components"""
     
     # Import components
-    mcp_app, web_routes, web_middleware, sse_endpoint = get_app_components()
+    mcp_app, web_routes, sse_endpoint, render_home_page, create_or_update_note_handler, delete_note_handler, get_notes_api, get_note_api = get_app_components()
     
     # Combined routes
     routes = [
@@ -124,11 +137,16 @@ def create_unified_app():
         # SSE events endpoint
         Route("/events", sse_endpoint, methods=["GET"]),
         
-        # Web interface routes (direct mounting)
-        *web_routes,
+        # Web interface routes
+        Route("/app", render_home_page, methods=["GET"]),
+        Route("/app/", render_home_page, methods=["GET"]),
+        Route("/notes", create_or_update_note_handler, methods=["POST"]),
+        Route("/notes/{id}", delete_note_handler, methods=["DELETE"]),
+        Route("/api/notes", get_notes_api, methods=["GET"]),
+        Route("/api/notes/{id}", get_note_api, methods=["GET"]),
         
-        # MCP endpoint - Mount the MCP app last
-        Mount("/mcp", app=mcp_app, name="mcp"),
+        # MCP endpoint - Mount the MCP app properly
+        Mount("/mcp", app=mcp_app, name="mcp") if mcp_app else Route("/mcp", handle_mcp_endpoint, methods=["POST", "GET"]),
     ]
     
     # Middleware
@@ -155,6 +173,9 @@ def create_unified_app():
 
 # Create the app
 unified_app = create_unified_app()
+
+# Export as 'app' for compatibility
+app = unified_app
 
 # ============================================================================
 # Server Runner
