@@ -146,7 +146,8 @@ def create_unified_app():
         Route("/api/notes/{id}", get_note_api, methods=["GET"]),
         
         # MCP endpoint - Mount the MCP app properly
-        Mount("/mcp", app=mcp_app, name="mcp") if mcp_app else Route("/mcp", handle_mcp_endpoint, methods=["POST", "GET"]),
+        Route("/mcp", mcp_app, methods=["POST", "GET"]),
+        Route("/mcp/", mcp_app, methods=["POST", "GET"]),
     ]
     
     # Middleware
