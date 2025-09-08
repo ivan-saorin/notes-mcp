@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Remote MCP Server v2 - Using FastMCP like Akasha
-FIXED: No more 307 redirects
+Remote MCP Server v3 - With Real-time Event System
+Production-ready with event-driven collaboration
 """
 
 import os
@@ -15,6 +15,23 @@ from starlette.applications import Starlette
 from starlette.routing import Route
 from starlette.responses import JSONResponse
 import uvicorn
+
+# Import event system
+try:
+    from .event_manager import (
+        event_manager,
+        EventType,
+        EventPriority,
+        emit_event,
+        EventFilter
+    )
+except ImportError:
+    # If running standalone, event system may not be available
+    event_manager = None
+    EventType = None
+    EventPriority = None
+    emit_event = lambda *args, **kwargs: lambda func: func
+    EventFilter = None
 
 # Configure logging
 logging.basicConfig(
@@ -110,6 +127,119 @@ async def text_analyze(text: str) -> Dict[str, Any]:
         "unique_words": len(set(words)),
         "preview": text[:100] + "..." if len(text) > 100 else text
     }
+
+# ============================================================================
+# LONG-POLLING FOR CLAUDE (Real-time Collaboration)
+# ============================================================================
+
+@mcp.tool()
+async def wait_for_updates(
+    targets: Optional[List[str]] = None,
+    timeout: int = 30,
+    since: Optional[str] = None,
+    priority_min: str = "normal"
+) -> Dict[str, Any]:
+    """
+    Wait for updates from UI or other sources.
+    Blocks until updates arrive or timeout.
+    
+    This enables Claude to actively watch for changes and collaborate
+    in real-time with users editing in the web UI.
+    
+    Args:
+        targets: Resource types to watch (e.g., ["note", "task"]) or None for all
+        timeout: Maximum seconds to wait (max 300)
+        since: Only get events after this timestamp or event_id
+        priority_min: Minimum priority (low, normal, high, critical)
+    
+    Returns:
+        {
+            "status": "updates" | "timeout" | "error",
+            "events": [...],  # List of events that occurred
+            "summary": {...},  # Summary of changes
+            "last_event_id": "evt_123",  # For next call
+            "duration": 1.23  # How long we waited
+        }
+    """
+    if not event_manager:
+        return {
+            "status": "error",
+            "error": "Event system not available",
+            "events": [],
+            "summary": {}
+        }
+    
+    # Convert priority string to enum
+    priority_map = {
+        "low": EventPriority.LOW if EventPriority else 0,
+        "normal": EventPriority.NORMAL if EventPriority else 1,
+        "high": EventPriority.HIGH if EventPriority else 2,
+        "critical": EventPriority.CRITICAL if EventPriority else 3
+    }
+    priority = priority_map.get(priority_min, 1)
+    
+    # Create filter if event system is available
+    filter_obj = None
+    if EventFilter:
+        filter_obj = EventFilter(
+            targets=targets,
+            priority_min=priority,
+            since=since
+        )
+    
+    # Use event manager's wait_for_updates
+    result = await event_manager.wait_for_updates(
+        connection_id="claude",  # Special connection ID for Claude
+        targets=targets,
+        timeout=min(timeout, 300),  # Cap at 5 minutes
+        filters=filter_obj,
+        since=since
+    )
+    
+    logger.info(f"Claude wait_for_updates: {result['status']} with {len(result.get('events', []))} events")
+    return result
+
+@mcp.tool()
+async def sync_changes(
+    last_sync_id: Optional[str] = None,
+    include_full_state: bool = False
+) -> Dict[str, Any]:
+    """
+    Get all changes since last sync point.
+    Useful for catching up after being offline.
+    
+    Args:
+        last_sync_id: ID of last processed event
+        include_full_state: Include current state of all resources
+    
+    Returns:
+        {
+            "events": [...],  # Changes since last sync
+            "next_sync_id": "evt_456",  # Use for next sync
+            "state": {...}  # Current state (if requested)
+        }
+    """
+    if not event_manager:
+        return {
+            "events": [],
+            "next_sync_id": last_sync_id,
+            "state": {}
+        }
+    
+    result = await event_manager.sync_changes(
+        connection_id="claude",
+        last_sync_id=last_sync_id,
+        include_full_state=include_full_state
+    )
+    
+    # If full state requested, add current data
+    if include_full_state:
+        result["state"] = {
+            "notes": list(notes_db.values()),
+            "tasks": list(tasks_db.values())
+        }
+    
+    return result
 
 # ============================================================================
 # TASK MANAGEMENT
@@ -216,10 +346,11 @@ async def task_delete(task_id: str) -> Dict[str, Any]:
     return {"success": True, "message": f"Task {task_id} deleted"}
 
 # ============================================================================
-# NOTES MANAGEMENT
+# NOTES MANAGEMENT - With Event Emission
 # ============================================================================
 
 @mcp.tool()
+@emit_event(EventType.LIST if EventType else None, target="note")
 async def list_notes(tags: Optional[List[str]] = None) -> Dict[str, Any]:
     """
     Lists all notes, or search notes with tags
@@ -260,6 +391,7 @@ async def get_note(note_id: str) -> Dict[str, Any]:
     return notes_db[note_id]
 
 @mcp.tool()
+@emit_event(EventType.CREATE if EventType else None, target="note", ui_hint="navigate_to", priority=EventPriority.HIGH if EventPriority else 2)
 async def write_note(
     title: str,
     content: str,
@@ -309,6 +441,7 @@ async def write_note(
     }
 
 @mcp.tool()
+@emit_event(EventType.DELETE if EventType else None, target="note", priority=EventPriority.HIGH if EventPriority else 2)
 async def delete_note(note_id: str) -> Dict[str, Any]:
     """
     Deletes a specific note by its ID
