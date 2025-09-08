@@ -497,9 +497,9 @@ class EventManager:
                     if filters.matches(event):
                         events.append(event)
                         
-                        # Check if this is a high-priority event that should trigger immediate return
-                        if event.priority == EventPriority.CRITICAL:
-                            break
+                        # Return immediately after receiving any matching event
+                        # This is the key fix - we don't wait for timeout
+                        break
                             
                 except asyncio.TimeoutError:
                     break
