@@ -228,13 +228,15 @@ async def render_home_page(request: Request) -> HTMLResponse:
         eventManager.on('note:create', (event) => {{
             if (event.source !== 'ui') {{
                 // Note created by Claude or API
-                addNoteToList(event.data);
-                showNotification(`Claude created: ${{event.data.title}}`, 'info');
+                // Extract note from nested structure if it comes from MCP
+                const noteData = event.data.note || event.data;
+                addNoteToList(noteData);
+                showNotification(`Claude created: ${{noteData.title}}`, 'info');
                 
                 if (event.metadata?.ui_hint === 'navigate_to') {{
                     // Flash the new note
                     setTimeout(() => {{
-                        const noteEl = document.querySelector(`[data-note-id="${{event.data.id}}"]`);
+                        const noteEl = document.querySelector(`[data-note-id="${{noteData.id}}"]`);
                         if (noteEl) {{
                             noteEl.classList.add('note-flash');
                             noteEl.scrollIntoView({{ behavior: 'smooth', block: 'center' }});
@@ -247,8 +249,10 @@ async def render_home_page(request: Request) -> HTMLResponse:
         eventManager.on('note:update', (event) => {{
             if (event.source !== 'ui') {{
                 // Note updated by Claude or API
-                updateNoteInList(event.data);
-                showNotification(`Claude updated: ${{event.data.title}}`, 'info');
+                // Extract note from nested structure if it comes from MCP
+                const noteData = event.data.note || event.data;
+                updateNoteInList(noteData);
+                showNotification(`Claude updated: ${{noteData.title}}`, 'info');
             }}
         }});
         
