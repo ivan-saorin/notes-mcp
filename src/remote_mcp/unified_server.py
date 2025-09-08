@@ -134,7 +134,7 @@ middleware = [
 unified_app = Starlette(
     routes=routes,
     middleware=middleware,
-    lifespan=unified_lifespan,
+    lifespan=mcp_app.lifespan if hasattr(mcp_app, 'lifespan') else unified_lifespan,
     debug=os.environ.get("DEBUG", "").lower() == "true"
 )
 
