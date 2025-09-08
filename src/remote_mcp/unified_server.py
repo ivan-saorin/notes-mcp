@@ -10,16 +10,13 @@ import os
 from contextlib import asynccontextmanager
 from starlette.applications import Starlette
 from starlette.routing import Route, Mount
-from starlette.responses import JSONResponse, RedirectResponse
+from starlette.responses import JSONResponse, RedirectResponse, HTMLResponse
 from starlette.middleware import Middleware
 from starlette.middleware.cors import CORSMiddleware
 import uvicorn
 
-# Import components
-from .server import app as mcp_app  # MCP server app
-from .web_app import web_app  # Web interface app
-from .event_manager import event_manager  # Event system
-from .sse_handler import sse_endpoint  # SSE endpoint
+# Import event system first
+from .event_manager import event_manager
 
 # Configure logging
 logging.basicConfig(
@@ -29,13 +26,34 @@ logging.basicConfig(
 logger = logging.getLogger("unified-server")
 
 # ============================================================================
-# MCP Handler - Direct routing to avoid 307 redirects
+# Lifespan Manager
 # ============================================================================
 
-async def mcp_handler(request):
-    """Direct handler for MCP requests to avoid 307 redirects"""
-    # Pass the request directly to the MCP app
-    return await mcp_app(request.scope, request.receive, request._send)
+@asynccontextmanager
+async def unified_lifespan(app):
+    """Manage lifecycle of all components"""
+    logger.info("Starting Unified Server v2...")
+    
+    # Start event manager
+    await event_manager.start()
+    logger.info("Event Manager started")
+    
+    # Import server components AFTER event manager is ready
+    from .server import app as mcp_app
+    
+    # Start MCP lifespan if it exists
+    if hasattr(mcp_app, 'lifespan'):
+        async with mcp_app.lifespan(app):
+            logger.info("MCP Server started with lifespan")
+            yield
+    else:
+        logger.info("MCP Server started")
+        yield
+    
+    # Cleanup
+    logger.info("Shutting down Unified Server...")
+    await event_manager.stop()
+    logger.info("Event Manager stopped")
 
 # ============================================================================
 # Health Check
@@ -73,86 +91,70 @@ async def health_check(request):
 
 async def root_redirect(request):
     """Redirect root to web UI"""
-    return RedirectResponse(url="/app/", status_code=302)
+    return RedirectResponse(url="/app", status_code=302)
 
 # ============================================================================
-# Combined Lifespan
+# Import Components (delayed to avoid circular imports)
 # ============================================================================
 
-@asynccontextmanager
-async def combined_lifespan(app):
-    """Combined lifespan that manages both MCP and event manager"""
-    # Start event manager first
-    await event_manager.start()
-    logger.info("Event Manager started")
+def get_app_components():
+    """Import app components after event manager is initialized"""
+    from .server import app as mcp_app
+    from .web_app import routes as web_routes, middleware as web_middleware
+    from .sse_handler import sse_endpoint
     
-    # Then start MCP lifespan if it exists
-    if hasattr(mcp_app, 'lifespan'):
-        async with mcp_app.lifespan(app):
-            logger.info("MCP Server started with lifespan")
-            yield
-            logger.info("MCP Server stopping")
-    else:
-        logger.info("MCP Server started (no lifespan)")
-        yield
-    
-    # Cleanup event manager
-    await event_manager.stop()
-    logger.info("Event Manager stopped")
-
-# ============================================================================
-# Combined Routes
-# ============================================================================
-
-routes = [
-    # Health check
-    Route("/health", health_check, methods=["GET"]),
-    Route("/", root_redirect, methods=["GET"]),
-    
-    # MCP endpoint - Direct routing to avoid 307
-    Route("/mcp", mcp_handler, methods=["POST", "GET", "OPTIONS"]),
-    Route("/mcp/", mcp_handler, methods=["POST", "GET", "OPTIONS"]),
-    
-    # Web interface - Mount the web app (this one is OK with redirects)
-    Mount("/app", app=web_app, name="web"),
-    
-    # SSE events endpoint (shared)
-    Route("/events", sse_endpoint, methods=["GET"]),
-]
-
-# ============================================================================
-# Middleware
-# ============================================================================
-
-middleware = [
-    Middleware(
-        CORSMiddleware,
-        allow_origins=["*"],
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-        expose_headers=["*"]
-    )
-]
+    return mcp_app, web_routes, web_middleware, sse_endpoint
 
 # ============================================================================
 # Create Unified Application
 # ============================================================================
 
-# Create the unified app with the MCP app's lifespan
-unified_app = Starlette(
-    routes=routes,
-    middleware=middleware,
-    lifespan=combined_lifespan,  # Use combined lifespan
-    debug=os.environ.get("DEBUG", "").lower() == "true"
-)
+def create_unified_app():
+    """Create the unified application with all components"""
+    
+    # Import components
+    mcp_app, web_routes, web_middleware, sse_endpoint = get_app_components()
+    
+    # Combined routes
+    routes = [
+        # Health check
+        Route("/health", health_check, methods=["GET"]),
+        Route("/", root_redirect, methods=["GET"]),
+        
+        # SSE events endpoint
+        Route("/events", sse_endpoint, methods=["GET"]),
+        
+        # Web interface routes (direct mounting)
+        *web_routes,
+        
+        # MCP endpoint - Mount the MCP app last
+        Mount("/mcp", app=mcp_app, name="mcp"),
+    ]
+    
+    # Middleware
+    middleware = [
+        Middleware(
+            CORSMiddleware,
+            allow_origins=["*"],
+            allow_credentials=True,
+            allow_methods=["*"],
+            allow_headers=["*"],
+            expose_headers=["*"]
+        )
+    ]
+    
+    # Create app
+    app = Starlette(
+        routes=routes,
+        middleware=middleware,
+        lifespan=unified_lifespan,
+        debug=os.environ.get("DEBUG", "").lower() == "true"
+    )
+    
+    return app
 
-# ============================================================================
-# Export for run_unified_server.py
-# ============================================================================
-
-# Export as 'app' for compatibility with run_unified_server.py
-app = unified_app
+# Create the app
+unified_app = create_unified_app()
 
 # ============================================================================
 # Server Runner
@@ -170,6 +172,7 @@ if __name__ == "__main__":
     logger.info(f"Starting server on {host}:{port}")
     logger.info(f"MCP endpoint: http://{host}:{port}/mcp")
     logger.info(f"Web interface: http://{host}:{port}/app")
+    logger.info(f"Web interface (alt): http://{host}:{port}/")
     logger.info(f"SSE events: http://{host}:{port}/events")
     logger.info(f"Health check: http://{host}:{port}/health")
     logger.info("=" * 60)
