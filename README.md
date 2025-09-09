@@ -213,11 +213,11 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ### Special Thanks to MCPNotes
 
-**A huge thank you to the creator of [MCPNotes](https://github.com/Tomatio13/MCPNotes)** for the excellent notes management implementation that inspired the notes features in this template! 🌟
+**A huge thank you to the creator of [MCPNotes](https://github.com/9Ninety/MCPNotes.git)** for the excellent notes management implementation that inspired the notes features in this template! 🌟
 
 The notes management functionality (both MCP tools and web interface) in this template is a Python port of the original MCPNotes project. We've maintained the same user experience and functionality while adapting it to Python and the FastMCP framework.
 
-If you find the notes features useful, please also check out and star the original [MCPNotes repository](https://github.com/Tomatio13/MCPNotes)!
+If you find the notes features useful, please also check out and star the original [MCPNotes repository]([https://github.com/Tomatio13/MCPNotes](https://github.com/9Ninety/MCPNotes.git))!
 
 ### Other Acknowledgments
 
